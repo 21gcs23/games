@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Math Battle Arena — Multiplayer</title>
+<style>
+/* ---------- STYLE (compact single-file) ---------- */
+:root{
+  --bg1:#07102a; --card:#0f1736; --text:#e9eeff;
+  --gold:#f8d26a; --blue:#2f5fff; --green:#19c37d; --red:#ff4d4f;
+}
+*{box-sizing:border-box} body{margin:0; font-family:Inter, system-ui, Arial; background:radial-gradient(800px 400px at 50% 10%, #142653, #061025); color:var(--text); -webkit-font-smoothing:antialiased}
+.app{max-width:1100px; margin:18px auto; padding:12px}
+.header{display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px}
+.title{font-family:Bangers, system-ui; font-size:28px; color:var(--gold); text-shadow:0 4px 0 #000}
+.mode-btns{display:flex; gap:8px}
+.btn{background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); padding:10px 14px; border-radius:12px; color:var(--text); cursor:pointer; font-weight:600}
+.btn.primary{background:linear-gradient(180deg,#4b7bff,#2f5fff); border-color:#2148cc; color:#fff}
+.card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12)); border-radius:18px; padding:12px; border:1px solid rgba(255,255,255,0.06)}
+.row{display:flex; gap:12px}
+.col{display:flex; flex-direction:column; gap:8px}
+
+.main-area{display:grid; gap:12px}
+
+/* SPLIT SCREEN (Local Multiplayer) */
+.split{display:grid; grid-template-columns: 1fr; gap:12px}
+@media(min-width:900px){ .split{grid-template-columns: 1fr 1fr} }
+
+.player-panel{padding:12px; border-radius:12px; min-height:160px; position:relative}
+.player-top{display:flex; justify-content:space-between; align-items:center}
+.hpbar{height:12px; background:#263153; border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,0.06)}
+.hpfill{height:100%; width:100%; transition:width .25s linear; background:linear-gradient(90deg,var(--green),#28e69b)}
+.hpfill.enemy{background:linear-gradient(90deg,var(--red),#ff7a7d)}
+.player-sprite{width:84px; height:84px; border-radius:12px; background:linear-gradient(180deg,#2b4aff,#1b2a6d); display:inline-block}
+.enemy-sprite{background:linear-gradient(180deg,#ff5b5b,#4a1212)}
+.panel-body{display:grid; gap:8px; margin-top:8px}
+
+.center-area{display:grid; gap:12px; align-items:center; justify-items:center}
+.arena-card{padding:12px; border-radius:12px; min-height:140px; display:flex; align-items:center; justify-content:center; gap:8px}
+.big-problem{font-weight:800; font-size:clamp(20px,4.2vw,34px); text-align:center}
+
+/* timer visual */
+.timer{height:10px; background:#243055; border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,0.06)}
+.timer-fill{height:100%; width:100%; background:linear-gradient(90deg,var(--gold),#ff7a00); transition:width .08s linear}
+
+/* inputs */
+.input-row{display:flex; gap:8px; align-items:center}
+.input-row input{padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); color:var(--text); font-size:16px}
+.small{font-size:13px; color:#cfd8ff}
+
+/* bottom controls */
+.controls{display:flex; gap:8px; align-items:center; justify-content:center; margin-top:6px}
+
+/* end screen */
+.end-overlay{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(4,6,12,0.6)}
+.end-overlay.active{display:flex}
+.end-card{width:90%; max-width:520px; padding:20px; border-radius:14px; text-align:center}
+
+/* misc */
+.footer{display:flex; justify-content:space-between; gap:12px; margin-top:10px; color:var(--gold); font-weight:700}
+.hint{color:#aebef6; font-size:13px}
+.explain{font-size:13px; color:#f1c27d}
+
+/* small tweaks */
+.choice-btn{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02); cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="title">Math Battle Arena</div>
+    <div class="mode-btns">
+      <button id="btn-single" class="btn">Single Player</button>
+      <button id="btn-local" class="btn primary">Local Multiplayer</button>
+      <!-- Online button left as scaffold -->
+      <button id="btn-online" class="btn">Online (Coming)</button>
+    </div>
+  </div>
+
+  <div class="main-area">
+    <!-- top stats row -->
+    <div class="row">
+      <div class="card" style="flex:1; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:800">Mode:</div>
+          <div id="modeLabel" class="small">Local Multiplayer</div>
+        </div>
+        <div style="text-align:right">
+          <div class="small">Global XP</div>
+          <div id="globalXP" style="font-weight:800">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- split area -->
+    <div id="splitArea" class="split">
+      <!-- Player 1 panel -->
+      <div id="panel1" class="card player-panel">
+        <div class="player-top">
+          <div style="display:flex;gap:10px;align-items:center">
+            <div class="player-sprite"></div>
+            <div>
+              <div style="font-weight:800">Player 1</div>
+              <div class="small" id="p1Name">Hero</div>
+            </div>
+          </div>
+          <div style="width:46%">
+            <div class="small">HP</div>
+            <div class="hpbar"><div id="p1HP" class="hpfill" style="width:100%"></div></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="small">Problem</div>
+          <div class="big-problem" id="p1Problem">—</div>
+          <div class="timer"><div id="p1Timer" class="timer-fill" style="width:100%"></div></div>
+          <div class="input-row">
+            <input id="p1Input" inputmode="numeric" placeholder="Answer..." />
+            <button id="p1Submit" class="btn">Submit</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hint">Combo: <span id="p1Combo">0</span></div>
+            <div class="explain" id="p1Explain"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center arena -->
+      <div class="center-area">
+        <div class="card arena-card" style="flex-direction:column; min-width:260px;">
+          <div style="font-weight:800">Arena</div>
+          <div id="centerProblem" class="big-problem">—</div>
+          <div style="width:90%"><div class="timer"><div id="centerTimer" class="timer-fill" style="width:100%"></div></div></div>
+          <div class="controls">
+            <button id="btnStart" class="btn primary">Start Round</button>
+            <button id="btnNextQ" class="btn">Next Q</button>
+            <button id="btnReset" class="btn">Reset</button>
+          </div>
+          <div class="hint" id="centerHint">First correct answer harms opponent. Wrong answer = opponent gets free hit.</div>
+        </div>
+      </div>
+
+      <!-- Player 2 panel -->
+      <div id="panel2" class="card player-panel">
+        <div class="player-top">
+          <div style="width:46%">
+            <div class="small">HP</div>
+            <div class="hpbar"><div id="p2HP" class="hpfill enemy" style="width:100%"></div></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div>
+              <div style="font-weight:800">Player 2</div>
+              <div class="small" id="p2Name">Rival</div>
+            </div>
+            <div class="enemy-sprite" style="width:84px;height:84px;border-radius:12px;display:inline-block"></div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="small">Problem</div>
+          <div class="big-problem" id="p2Problem">—</div>
+          <div class="timer"><div id="p2Timer" class="timer-fill" style="width:100%"></div></div>
+          <div class="input-row">
+            <input id="p2Input" inputmode="numeric" placeholder="Answer..." />
+            <button id="p2Submit" class="btn">Submit</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="hint">Combo: <span id="p2Combo">0</span></div>
+            <div class="explain" id="p2Explain"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div id="status" class="hint">Idle</div>
+      <div class="hint">Tip: On mobile use both sides in landscape for best experience</div>
+    </div>
+  </div>
+</div>
+
+<!-- End overlay -->
+<div id="endOverlay" class="end-overlay">
+  <div class="end-card card">
+    <h2 id="endTitle">Winner</h2>
+    <div id="endText" style="margin:12px 0"></div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
+      <button id="btnRematch" class="btn primary">Rematch</button>
+      <button id="btnClose" class="btn">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- JS: Local Multiplayer Implementation ---------- */
+
+/* Game state */
+const STATE = {
+  mode: 'local', // 'single'|'local'|'online'
+  running: false,
+  currentQ: null,
+  answer: null,
+  startTime: null,
+  timerMs: 10000,   // total ms for each question
+  p1: {hp:100, max:100, combo:0, lastAnswerTime: null, correctCount:0},
+  p2: {hp:100, max:100, combo:0, lastAnswerTime: null, correctCount:0},
+  globalXP: 0
+};
+
+/* Elements */
+const modeLabel = document.getElementById('modeLabel');
+const centerProblem = document.getElementById('centerProblem');
+const p1Problem = document.getElementById('p1Problem');
+const p2Problem = document.getElementById('p2Problem');
+const p1Input = document.getElementById('p1Input');
+const p2Input = document.getElementById('p2Input');
+const p1Submit = document.getElementById('p1Submit');
+const p2Submit = document.getElementById('p2Submit');
+const centerTimer = document.getElementById('centerTimer');
+const p1Timer = document.getElementById('p1Timer');
+const p2Timer = document.getElementById('p2Timer');
+const btnStart = document.getElementById('btnStart');
+const btnNextQ = document.getElementById('btnNextQ');
+const btnReset = document.getElementById('btnReset');
+const p1HP = document.getElementById('p1HP');
+const p2HP = document.getElementById('p2HP');
+const p1Combo = document.getElementById('p1Combo');
+const p2Combo = document.getElementById('p2Combo');
+const p1Explain = document.getElementById('p1Explain');
+const p2Explain = document.getElementById('p2Explain');
+const status = document.getElementById('status');
+const endOverlay = document.getElementById('endOverlay');
+const endTitle = document.getElementById('endTitle');
+const endText = document.getElementById('endText');
+const btnRematch = document.getElementById('btnRematch');
+const btnClose = document.getElementById('btnClose');
+const globalXP = document.getElementById('globalXP');
+
+/* Mode buttons */
+document.getElementById('btn-local').addEventListener('click', ()=> setMode('local'));
+document.getElementById('btn-single').addEventListener('click', ()=> setMode('single'));
+document.getElementById('btn-online').addEventListener('click', ()=> alert('Online mode scaffolding is included — I can add a Node/Socket.io server if you want.'));
+
+/* Start / Next / Reset */
+btnStart.addEventListener('click', ()=> {
+  if (!STATE.running) startRound();
+});
+btnNextQ.addEventListener('click', ()=> {
+  if (STATE.running) spawnQuestion();
+});
+btnReset.addEventListener('click', ()=> resetMatch());
+btnRematch.addEventListener('click', ()=> { resetMatch(); endOverlay.classList.remove('active'); startRound(); });
+btnClose.addEventListener('click', ()=> { endOverlay.classList.remove('active'); resetMatch(); });
+
+/* Submit handlers */
+p1Submit.addEventListener('click', ()=> handleSubmit('p1'));
+p2Submit.addEventListener('click', ()=> handleSubmit('p2'));
+p1Input.addEventListener('keydown', (e)=>{ if (e.key==='Enter') handleSubmit('p1'); });
+p2Input.addEventListener('keydown', (e)=>{ if (e.key==='Enter') handleSubmit('p2'); });
+
+/* Mode setup */
+function setMode(m){
+  STATE.mode = m;
+  modeLabel.textContent = m==='local' ? 'Local Multiplayer' : (m==='single'?'Single Player':'Online');
+  // simple UI adapt: in single player, show only left panel (we keep UI simple now)
+  document.getElementById('btn-single').classList.toggle('primary', m==='single');
+  document.getElementById('btn-local').classList.toggle('primary', m==='local');
+}
+
+/* Utility: random int inclusive */
+function rInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+
+/* Generators (same as earlier, but local-friendly) */
+function genQuestion(difficulty='mixed'){
+  // difficulty can be 'easy'|'medium'|'hard'|'mixed'
+  const roll = difficulty === 'mixed' ? Math.random() : 1;
+  // We'll return {text, answer, tier}
+  const pick = Math.random();
+  if (pick < 0.45){ // beginner
+    const n1 = rInt(1,12), n2 = rInt(1,12);
+    const op = Math.random()<0.5?'+':'-';
+    return {text: `${n1} ${op} ${n2} = ?`, answer: op==='+'?n1+n2:n1-n2, tier:'easy'};
+  } else if (pick < 0.85){ // intermediate
+    const op = Math.random()<0.6 ? '*' : '/';
+    if (op === '*'){ const a=rInt(2,12), b=rInt(2,12); return {text:`${a} * ${b} = ?`, answer:a*b, tier:'medium'} }
+    else { const b=rInt(2,10), a=rInt(2,10); const n1=b*a; return {text:`${n1} / ${b} = ?`, answer:a, tier:'medium'} }
+  } else { // advanced
+    const a=rInt(2,8), x=rInt(1,10), b=rInt(-6,8), c=a*x+b; const sign = b>=0?`+ ${b}`:`- ${Math.abs(b)}`;
+    return {text:`${a}x ${sign} = ${c}  (solve x)`, answer:x, tier:'hard'};
+  }
+}
+
+/* Start round: initialize variables */
+let qTimer = null;
+function startRound(){
+  STATE.running = true;
+  STATE.p1.hp = STATE.p1.max; STATE.p2.hp = STATE.p2.max;
+  STATE.p1.combo = 0; STATE.p2.combo = 0;
+  STATE.p1.correctCount=0; STATE.p2.correctCount=0;
+  updateHPUI();
+  p1Combo.textContent = '0'; p2Combo.textContent = '0';
+  status.textContent = 'Round started — first correct answer deals damage!';
+  spawnQuestion();
+}
+
+/* Reset match */
+function resetMatch(){
+  STATE.running = false;
+  clearInterval(qTimer);
+  STATE.p1.hp = STATE.p1.max; STATE.p2.hp = STATE.p2.max;
+  updateHPUI();
+  centerProblem.textContent = '—';
+  p1Problem.textContent = '—'; p2Problem.textContent = '—';
+  setTimerFill(1);
+  p1Timer.style.width = '100%'; p2Timer.style.width = '100%';
+  p1Input.value=''; p2Input.value='';
+  p1Explain.textContent=''; p2Explain.textContent='';
+  status.textContent = 'Idle';
+}
+
+/* Spawn a new question and start the countdown */
+function spawnQuestion(){
+  if (!STATE.running) return;
+  clearInterval(qTimer);
+  const q = genQuestion();
+  STATE.currentQ = q;
+  STATE.answer = q.answer;
+  STATE.startTime = performance.now();
+  centerProblem.textContent = q.text;
+  p1Problem.textContent = q.text;
+  p2Problem.textContent = q.text;
+  p1Input.value=''; p2Input.value='';
+  p1Explain.textContent=''; p2Explain.textContent='';
+  setTimerFill(1);
+  // start timers for both players (same)
+  const total = STATE.timerMs;
+  qTimer = setInterval(()=>{
+    const elapsed = performance.now() - STATE.startTime;
+    const leftPct = Math.max(0, (total - elapsed))/total;
+    setTimerFill(leftPct);
+    p1Timer.style.width = (leftPct*100)+'%';
+    p2Timer.style.width = (leftPct*100)+'%';
+    if (elapsed >= total){
+      clearInterval(qTimer);
+      // timeout: both fail -> both take small damage (or nothing). We'll make both lose small HP.
+      status.textContent = 'Time out! Both players missed.';
+      applyDamage('p1', 6);
+      applyDamage('p2', 6);
+      checkForEnd();
+      // spawn next question after short delay
+      setTimeout(()=>{ if (STATE.running) spawnQuestion(); }, 700);
+    }
+  }, 80);
+}
+
+/* Set timer fill center */
+function setTimerFill(pct){
+  centerTimer.style.width = (pct*100)+'%';
+}
+
+/* Handle submit: who answered and correctness/time */
+let answeredThisQ = false;
+function handleSubmit(player){
+  if (!STATE.running || !STATE.currentQ) return;
+  // Prevent multiple answers from same player in same Q
+  const input = player === 'p1' ? p1Input.value.trim() : p2Input.value.trim();
+  if (input === '') return;
+  const numeric = Number(input);
+  const correct = Number(STATE.answer);
+  const now = performance.now();
+  const elapsed = now - STATE.startTime;
+  const faster = (elapsed < STATE.timerMs); // answered in time
+
+  // If the other player already got the correct fastest answer, only allow their response to count for hit (but allow explanation)
+  const other = player === 'p1' ? 'p2' : 'p1';
+  // If someone already answered correctly before this submit (and dealt damage), we still record but it won't give damage
+  // Determine correctness
+  const isCorrect = Number.isFinite(numeric) && numeric === correct;
+  // Stop timer as soon as we have a correct answer from either side
+  if (isCorrect && !answeredThisQ){
+    answeredThisQ = true;
+    clearInterval(qTimer);
+    // This player is the winner of this question
+    const damage = damageForTier(STATE.currentQ.tier, STATE[player].combo);
+    // Increase combo & correct counters for winner
+    STATE[player].combo += 1;
+    STATE[player].correctCount += 1;
+    // Reset other's combo
+    STATE[other].combo = 0;
+    // Apply damage to opponent
+    applyDamage(other, damage);
+    // Bonus: if answered very fast, give small heal or shield (simple: heal)
+    if (elapsed < 1200){ STATE[player].hp = Math.min(STATE[player].max, STATE[player].hp + 8); updateHPUI(); }
+    // update UI combos
+    updateComboUI();
+    // show explain
+    if (player==='p1') p1Explain.textContent = 'Correct! +' + damage + ' dmg';
+    else p2Explain.textContent = 'Correct! +' + damage + ' dmg';
+    status.textContent = `Player ${player==='p1'?'1':'2'} was fastest & correct — dealt ${damage} damage!`;
+    checkForEnd();
+    // spawn next after short delay
+    setTimeout(()=>{ answeredThisQ = false; if (STATE.running) spawnQuestion(); }, 800);
+  } else {
+    // Not correct OR answered after correct: penalty -> opponent receives a small free hit
+    if (!isCorrect){
+      // wrong answer penalty
+      const pen = 8;
+      applyDamage(player, pen);
+      if (player==='p1') p1Explain.textContent = `Wrong — you took ${pen} dmg`;
+      else p2Explain.textContent = `Wrong — you took ${pen} dmg`;
+      STATE[player].combo = 0;
+      STATE[other].combo = STATE[other].combo; // unchanged
+      updateComboUI();
+      status.textContent = `Player ${player==='p1'?'1':'2'} answered wrong — penalty applied.`;
+      checkForEnd();
+      // If the other player hasn't yet answered, keep question running (they can still answer if time left)
+    } else {
+      // Correct but another player already answered correctly earlier -> no damage, but mark correct
+      if (isCorrect && answeredThisQ){
+        if (player==='p1') { p1Explain.textContent = `Correct but too slow.`; STATE.p1.combo = 0; }
+        else { p2Explain.textContent = `Correct but too slow.`; STATE.p2.combo = 0; }
+        updateComboUI();
+      }
+    }
+  }
+  // clear inputs so user can't spam
+  p1Input.value=''; p2Input.value='';
+}
+
+/* Damage calculation by tier */
+function damageForTier(tier, combo){
+  let base = 10;
+  if (tier === 'easy') base = 10;
+  if (tier === 'medium') base = 18;
+  if (tier === 'hard') base = 28;
+  // combo multiplier (3+)
+  if (combo >= 3) base = Math.round(base * 1.25);
+  return base;
+}
+
+/* Apply damage to player key ('p1' or 'p2') */
+function applyDamage(player, dmg){
+  STATE[player].hp = Math.max(0, STATE[player].hp - dmg);
+  updateHPUI();
+}
+
+/* Update HP UI */
+function updateHPUI(){
+  p1HP.style.width = (STATE.p1.hp / STATE.p1.max * 100) + '%';
+  p2HP.style.width = (STATE.p2.hp / STATE.p2.max * 100) + '%';
+}
+
+/* Update combos */
+function updateComboUI(){
+  p1Combo.textContent = STATE.p1.combo;
+  p2Combo.textContent = STATE.p2.combo;
+}
+
+/* Check for end of match */
+function checkForEnd(){
+  if (STATE.p1.hp <= 0 || STATE.p2.hp <= 0){
+    STATE.running = false;
+    clearInterval(qTimer);
+    const winner = STATE.p1.hp > STATE.p2.hp ? 'Player 1' : 'Player 2';
+    endTitle.textContent = `${winner} Wins!`;
+    endText.innerHTML = `
+      <div>Player 1 correct: ${STATE.p1.correctCount}</div>
+      <div>Player 2 correct: ${STATE.p2.correctCount}</div>
+    `;
+    // Award global XP
+    const xpGain = (winner === 'Player 1') ? 20 + STATE.p1.correctCount*3 : 20 + STATE.p2.correctCount*3;
+    STATE.globalXP += xpGain;
+    globalXP.textContent = STATE.globalXP;
+    endOverlay.classList.add('active');
+    status.textContent = `${winner} wins!`;
+  }
+}
+
+/* Initialize */
+setMode('local');
+resetMatch();
+
+/* Expose a small cheat for quickly testing */
+window.__STATE = STATE;
+
+/* Optional: keyboard shortcuts to help two players on same keyboard:
+   Player1: Enter in left input (handled).
+   Player2: Enter in right input (handled).
+*/
+
+/* Notes / next steps if you want Online mode:
+   - Add a Node.js server with Socket.io.
+   - Clients join a room, server emits the same question to both.
+   - When a player submits, client sends 'playerAnswer' with time; server decides who was first correct and broadcasts the result.
+   - Keep client UI mostly identical; replace local logic with server-driven events.
+*/
+
+</script>
+</body>
+</html>

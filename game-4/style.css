@@ -1,0 +1,181 @@
+:root{
+  --bg:#0c1330;
+  --bg-2:#121a3f;
+  --gold:#f8d26a;
+  --blue:#2f5fff;
+  --green:#19c37d;
+  --red:#ff4d4f;
+  --card:#0f1736;
+  --text:#e9eeff;
+  --muted:#a9b4d6;
+  --white:#ffffff;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background: radial-gradient(1200px 600px at 50% 10%, #15205a 0%, #0b1230 50%, #060a1e 100%);
+  color:var(--text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+#app{min-height:100vh; display:grid; place-items:center; padding:16px}
+
+.screen{display:none; width:100%; max-width:1100px}
+.screen.active{display:block}
+
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:24px;
+  padding:24px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+}
+
+.card.narrow{max-width:720px; margin:0 auto}
+
+.title{
+  font-family: Bangers, Inter, sans-serif;
+  font-size: clamp(40px, 8vw, 84px);
+  color:var(--gold);
+  text-align:center;
+  margin:0 0 24px;
+  letter-spacing:1px;
+  text-shadow: 0 6px 0 #000, 0 0 22px rgba(248,210,106,0.35);
+}
+
+.btn{
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.15);
+  color:var(--text);
+  padding:12px 18px;
+  border-radius:16px;
+  font-weight:600;
+  font-size:16px;
+  cursor:pointer;
+  backdrop-filter: blur(6px);
+  transition: transform .06s ease, background .2s ease, border .2s ease;
+  width:100%;
+}
+.btn:hover{transform: translateY(-1px); background:rgba(255,255,255,0.12)}
+.btn:active{transform: translateY(0)}
+.btn.primary{background:linear-gradient(180deg, #4b7bff, #2f5fff); border-color:#2148cc; color:#fff}
+.btn.ghost{background:transparent; border-color:rgba(255,255,255,0.2)}
+
+.btn-row{display:grid; gap:12px}
+@media (min-width:640px){ .btn-row{grid-template-columns: repeat(3, 1fr);} }
+
+.arena-bg{
+  height:28vh;
+  max-height:220px;
+  border-radius:24px;
+  background:
+    radial-gradient(400px 120px at 50% 0%, rgba(248,210,106,0.35), transparent 60%),
+    url('https://images.unsplash.com/photo-1600423115367-6c1d6d7f9c43?q=80&w=1600&auto=format&fit=crop') center/cover no-repeat;
+  filter: saturate(1.1) contrast(1.05) brightness(0.9);
+  border:1px solid rgba(255,255,255,0.08);
+  margin-bottom:16px;
+}
+
+/* Difficulty buttons */
+.difficulty-list{display:grid; gap:12px; margin:12px 0 20px}
+.btn.diff{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.diff-title{font-weight:800}
+.diff-desc{font-size:13px; color:var(--muted)}
+
+/* Top HUD */
+.top-hud{
+  display:grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+.character{display:grid; grid-template-columns: 56px 1fr; grid-template-rows:auto auto; gap:6px 10px; align-items:center}
+.char-portrait{
+  grid-row: 1 / span 2;
+  width:56px; height:56px; border-radius:16px; background:#1c2558; border:1px solid rgba(255,255,255,0.12);
+}
+.char-portrait.player{background: radial-gradient(120px 60px at 50% 30%, #345cff, #1b2a6d)}
+.char-portrait.enemy{background: radial-gradient(120px 60px at 50% 30%, #7d1b1b, #3c0a0a)}
+.name{font-weight:800}
+.hpbar{
+  width:100%; height:12px; background:#2a325c; border-radius:999px; border:1px solid rgba(255,255,255,0.1); overflow:hidden;
+}
+.hpbar.enemy{background:#3b2740}
+.hp{
+  height:100%; width:100%;
+  background: linear-gradient(90deg, #19c37d, #28e69b);
+  transition: width .25s ease;
+}
+.hpbar.enemy .hp{background: linear-gradient(90deg, #ff4d4f, #ff7a7d)}
+
+/* Stage */
+.battle-stage{
+  position:relative;
+  height:36vh;
+  min-height:250px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.15));
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:24px;
+  overflow:hidden;
+  margin-bottom:12px;
+  display:grid; place-items:center;
+}
+#effects-layer{position:absolute; inset:0; pointer-events:none}
+
+.sprite{
+  width:140px; height:140px; border-radius:22px;
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.45);
+}
+.sprite.player{justify-self:start; margin-left:4%}
+.sprite.enemy{justify-self:end; margin-right:4%}
+.sprite.idle{background: radial-gradient(180px 100px at 50% 30%, #4b7bff33, #192357)}
+.sprite.enemy.idle{background: radial-gradient(180px 100px at 50% 30%, #ff4d4f33, #371d2a)}
+.sprite.hit{animation: hit .25s}
+.sprite.attack{animation: attack .3s}
+@keyframes hit{0%{transform: translateX(0)} 25%{transform: translateX(-6px)} 75%{transform: translateX(6px)} 100%{transform: translateX(0)}}
+@keyframes attack{0%{transform: scale(1)} 50%{transform: scale(1.06)} 100%{transform: scale(1)}}
+
+/* Bottom UI */
+.bottom-ui{padding:16px}
+.problem-wrap{display:grid; gap:10px}
+.problem{
+  font-family: Inter, system-ui, sans-serif;
+  font-weight:800;
+  font-size: clamp(22px, 3.4vw, 34px);
+  text-align:center;
+  padding:6px 10px;
+}
+.input-row{display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center}
+#answer{
+  width:100%; padding:12px 14px; font-size:18px; border-radius:14px; border:1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06); color:var(--text);
+}
+#submit{min-width:120px}
+.choices{display:none; gap:8px; flex-wrap:wrap}
+.choices .choice{padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); cursor:pointer}
+.choices .choice:hover{background:rgba(255,255,255,0.12)}
+
+.mini-hud{display:flex; gap:14px; justify-content:center; font-size:14px; color:var(--muted)}
+.explain{min-height:20px; text-align:center; font-size:14px; color:#f1c27d}
+
+/* Timer */
+#timer-bar{height:10px; background:#2b335e; border-radius:999px; overflow:hidden; border:1px solid rgba(255,255,255,0.1)}
+#timer-fill{height:100%; width:100%; background: linear-gradient(90deg, #f8d26a, #ff7a00); transition: width .1s linear}
+
+/* Start screen tweaks */
+.start-card{padding:18px}
+
+/* End screen */
+.end-stats{display:grid; gap:8px; margin:16px 0; text-align:center}
+
+/* Responsive */
+@media (max-width:640px){
+  .top-hud{grid-template-columns: 1fr; gap:10px}
+  .battle-stage{height:32vh; min-height:220px}
+  .input-row{grid-template-columns: 1fr}
+  #submit{width:100%}
+}
